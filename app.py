@@ -81,17 +81,6 @@ def recommend_tree(soil, weights=None):
     tree_scores = {}
 
     for tree, prof in tree_profiles.items():
-
-        # --- ARALIK DIŞI KONTROL ---
-        if not (
-            abs(s["salinity"] - prof["salinity"]["ideal"]) <= prof["salinity"]["tol"] and
-            abs(s["moisture"] - prof["moisture"]["ideal"]) <= prof["moisture"]["tol"] and
-            abs(s["pH"] - prof["pH"]["ideal"]) <= prof["pH"]["tol"] and
-            abs(s["organic"] - prof["organic"]["ideal"]) <= prof["organic"]["tol"] and
-            abs(s["slope"] - prof["slope"]["ideal"]) <= prof["slope"]["tol"]
-        ):
-            continue
-
         score_salinity = continuous_score(s["salinity"], prof["salinity"]["ideal"], prof["salinity"]["tol"])
         score_moisture = continuous_score(s["moisture"], prof["moisture"]["ideal"], prof["moisture"]["tol"])
         score_pH = continuous_score(s["pH"], prof["pH"]["ideal"], prof["pH"]["tol"])
@@ -118,44 +107,34 @@ def recommend_tree(soil, weights=None):
 
         tree_scores[tree] = round(total_score * 100, 2)
 
-    if not tree_scores:
-        return None
+    ranked = sorted(tree_scores.items(), key=lambda x: x[1], reverse=True)
 
-    return sorted(tree_scores.items(), key=lambda x: x[1], reverse=True)
+    st.subheader("🌳 Ağaç Skorları")
+    for tree, score in ranked:
+        st.write(f"**{tree.capitalize()}**: {score}%")
 
-# ==========================
+    best = ranked[0][0]
+    st.success(f"✅ Önerilen Ağaç: {best.upper()}")
+
+    return ranked
+
+# --------------------------
 # STREAMLIT ARAYÜZÜ
-# ==========================
+# --------------------------
 
 st.title("🌱 Toprak Verisine Göre Ağaç Öneri Sistemi")
 
-salinity = st.number_input("Tuzluluk (dS/m)", 0.0, 20.0, 0.0)
-moisture = st.number_input("Sululuk (%)", 0.0, 100.0, 25.0)
-pH = st.number_input("pH", 3.0, 10.0, 7.0)
-soil_type = st.selectbox(
-    "Toprak tipi",
-    ["kumlu", "tınlı", "killi", "kumlu tınlı", "kumlu killi", "tınlı killi"]
-)
-organic = st.number_input("Organik madde (%)", 0.01, 100.0, 3.0)
-slope = st.number_input("Eğim (%)", 0.0, 50.0, 5.0)
+soil = {
+    "salinity": st.number_input("Tuzluluk (dS/m)", 0.0, 20.0, 0.0),
+    "moisture": st.number_input("Sululuk (%)", 0.0, 100.0, 20.0),
+    "pH": st.number_input("pH", 3.0, 10.0, 7.0),
+    "soil_type": st.selectbox(
+        "Toprak tipi",
+        ["kumlu", "tınlı", "killi", "kumlu tınlı", "kumlu killi", "tınlı killi"]
+    ),
+    "organic": st.number_input("Organik madde (%)", 0.01, 100.0, 2.0),
+    "slope": st.number_input("Eğim (%)", 0.0, 50.0, 5.0)
+}
 
 if st.button("Ağaç Öner"):
-    soil = {
-        "salinity": salinity,
-        "moisture": moisture,
-        "pH": pH,
-        "soil_type": soil_type,
-        "organic": organic,
-        "slope": slope
-    }
-
-    ranked = recommend_tree(soil)
-
-    if ranked is None:
-        st.error("❌ Bu koşullarda ağaç yetiştirmek mümkün değildir.")
-    else:
-        st.subheader("🌳 Ağaç Skorları")
-        for tree, score in ranked:
-            st.write(f"**{tree.capitalize()}**: {score}%")
-
-        st.success(f"Önerilen Ağaç: **{ranked[0][0].upper()}**")
+    recommend_tree(soil)
