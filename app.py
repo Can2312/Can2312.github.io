@@ -62,7 +62,7 @@ def continuous_score(value, ideal, tol):
     score = 1 - (diff / tol)
     return clamp(score, 0, 1)
 
-# --- Ana fonksiyon (DEĞİŞMEDİ) ---
+# --- Ana fonksiyon ---
 def recommend_tree(soil, weights=None):
 
     s = {
@@ -81,6 +81,17 @@ def recommend_tree(soil, weights=None):
     tree_scores = {}
 
     for tree, prof in tree_profiles.items():
+
+        # --- ARALIK DIŞI KONTROL ---
+        if not (
+            abs(s["salinity"] - prof["salinity"]["ideal"]) <= prof["salinity"]["tol"] and
+            abs(s["moisture"] - prof["moisture"]["ideal"]) <= prof["moisture"]["tol"] and
+            abs(s["pH"] - prof["pH"]["ideal"]) <= prof["pH"]["tol"] and
+            abs(s["organic"] - prof["organic"]["ideal"]) <= prof["organic"]["tol"] and
+            abs(s["slope"] - prof["slope"]["ideal"]) <= prof["slope"]["tol"]
+        ):
+            continue
+
         score_salinity = continuous_score(s["salinity"], prof["salinity"]["ideal"], prof["salinity"]["tol"])
         score_moisture = continuous_score(s["moisture"], prof["moisture"]["ideal"], prof["moisture"]["tol"])
         score_pH = continuous_score(s["pH"], prof["pH"]["ideal"], prof["pH"]["tol"])
@@ -107,8 +118,10 @@ def recommend_tree(soil, weights=None):
 
         tree_scores[tree] = round(total_score * 100, 2)
 
-    ranked = sorted(tree_scores.items(), key=lambda x: x[1], reverse=True)
-    return ranked
+    if not tree_scores:
+        return None
+
+    return sorted(tree_scores.items(), key=lambda x: x[1], reverse=True)
 
 # ==========================
 # STREAMLIT ARAYÜZÜ
@@ -138,8 +151,11 @@ if st.button("Ağaç Öner"):
 
     ranked = recommend_tree(soil)
 
-    st.subheader("🌳 Ağaç Skorları")
-    for tree, score in ranked:
-        st.write(f"**{tree.capitalize()}**: {score}%")
+    if ranked is None:
+        st.error("❌ Bu koşullarda ağaç yetiştirmek mümkün değildir.")
+    else:
+        st.subheader("🌳 Ağaç Skorları")
+        for tree, score in ranked:
+            st.write(f"**{tree.capitalize()}**: {score}%")
 
-    st.success(f"Önerilen Ağaç: **{ranked[0][0].upper()}**")
+        st.success(f"Önerilen Ağaç: **{ranked[0][0].upper()}**")
